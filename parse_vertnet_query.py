@@ -35,7 +35,7 @@ def main():
 	prettyPrint(counts)
 	
 	#select top X specimens that are most recent and not skeletal? 
-	samples = sampleGetOne_newFirst(vertnet, kept, priorities, counts["institutioncode"])
+	samples = getSamples(vertnet, kept, priorities, counts["institutioncode"])
 	
 
 def getSamples(vertnet, kept, priorities, order, max_keep=1):
@@ -51,9 +51,9 @@ def getSamples(vertnet, kept, priorities, order, max_keep=1):
 			if kept[species] >= max_keep:
 				continue
 			else:
-				best=sp_data.loc[sp_data["preparations"].contains("muscle|heart|liver|kidney", regex=True)]
+				best=sp_data.loc[sp_data["preparations"].str.contains("muscle|heart|liver|kidney", regex=True)]
 				print(best.shape[0], " - ", sp_data.shape[0])
-				print(best)
+				prettyPrint(best)
 				
 
 def prettyPrint(data, max_row=None, max_col=None):
