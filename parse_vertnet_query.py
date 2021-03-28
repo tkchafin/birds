@@ -8,9 +8,12 @@ import xlsxwriter
 
 def main():
 	
-	family="Picidae"
+	family="Anseriformes"
 	max_keep=5
 	remove_nospecies=True
+	remove_hybrids=True
+	remove_uncertain=True
+	collapse_subspecies=True
 	kept=dict()
 	priorities={"DMNH":3, "DMNS":3, "UCM":3, "LACM":1, "MSB":1} #museums to check first; highest number = best
 	
@@ -18,7 +21,7 @@ def main():
 	print('Loading VertNet queries...')
 	vertnet=pd.read_csv("~/Desktop/PRFB_Birds/VertNet_query.tsv", sep="\t", header=0, low_memory=False)
 	#vertnet = vertnet.loc[(vertnet['order']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
-	vertnet = vertnet.loc[(vertnet['family']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
+	vertnet = vertnet.loc[(vertnet['order']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
 
 	
 	#remove samples with no epithet
@@ -26,6 +29,15 @@ def main():
 		bads=["Sp.", "Sp", "sp", "sp.", "Cf.", "cf.", "Cf", "cf", "NaN", "nan"]
 		vertnet = vertnet.loc[~vertnet["specificepithet"].isin(bads)]
 		vertnet = vertnet.dropna(subset=["specificepithet"])
+		vertnet = vertnet[~vertnet["scientificname"].str.contains("needs identification")]
+	
+	if remove_uncertain:
+		vertnet = vertnet[~vertnet["scientificname"].str.contains(",")]
+		vertnet = vertnet[~vertnet["scientificname"].str.contains("\?")]
+
+	if remove_hybrids:
+		vertnet = vertnet[~vertnet["scientificname"].str.contains(" x ")]
+		vertnet = vertnet[~vertnet["scientificname"].str.contains("hybrid")]
 
 	#format species name 
 	vertnet["scientificname"] = vertnet['genus'].map(str) + ' ' + vertnet['specificepithet'].map(str) + ' ' + vertnet['infraspecificepithet'].map(str)
@@ -35,6 +47,12 @@ def main():
 	vertnet["source"] = "vertnet"
 	vertnet = vertnet.replace({'scientificname': r'\snan$'}, {'scientificname': ''}, regex=True)
 	
+	#if collapse, change that here
+	if collapse_subspecies:
+		vertnet["subspecies"] = vertnet["scientificname"]
+		vertnet["scientificname"] = vertnet.scientificname.str.split().str.get(0) + " " + vertnet.scientificname.str.split().str.get(1)
+	
+	#print(vertnet)
 	#initialize dict of keeps
 	#kept = {key: 0 for key in set(vertnet["scientificname"])} 
 	speclist = set(list(vertnet["scientificname"]))
