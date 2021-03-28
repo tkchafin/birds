@@ -8,12 +8,13 @@ import xlsxwriter
 
 def main():
 	
-	family="Anseriformes"
+	family="Tyrannidae"
 	max_keep=5
 	remove_nospecies=True
 	remove_hybrids=True
 	remove_uncertain=True
 	collapse_subspecies=True
+	age_cutoff=1985
 	kept=dict()
 	priorities={"DMNH":3, "DMNS":3, "UCM":3, "LACM":1, "MSB":1} #museums to check first; highest number = best
 	
@@ -21,7 +22,7 @@ def main():
 	print('Loading VertNet queries...')
 	vertnet=pd.read_csv("~/Desktop/PRFB_Birds/VertNet_query.tsv", sep="\t", header=0, low_memory=False)
 	#vertnet = vertnet.loc[(vertnet['order']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
-	vertnet = vertnet.loc[(vertnet['order']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
+	vertnet = vertnet.loc[(vertnet['family']==family) & (vertnet['isfossil'] == 0) & (vertnet['hastissue'] == 1)]
 
 	
 	#remove samples with no epithet
@@ -38,6 +39,9 @@ def main():
 	if remove_hybrids:
 		vertnet = vertnet[~vertnet["scientificname"].str.contains(" x ")]
 		vertnet = vertnet[~vertnet["scientificname"].str.contains("hybrid")]
+
+	if age_cutoff > 0:
+		vertnet = vertnet[vertnet["year"] > age_cutoff]
 
 	#format species name 
 	vertnet["scientificname"] = vertnet['genus'].map(str) + ' ' + vertnet['specificepithet'].map(str) + ' ' + vertnet['infraspecificepithet'].map(str)
@@ -179,7 +183,7 @@ def getSamples(vertnet, priorities, order):
 			for species, sp_data in data.groupby("scientificname"):
 				best=None
 				picked=None
-				sp_data = sp_data.sort_values("year", ascending=False)
+				sp_data = sp_data.sort_values("year", ascending=False, ignore_index=True)
 				picked=sp_data.iloc[0].copy(deep=True)
 
 				alternates=""
