@@ -8,11 +8,11 @@ import xlsxwriter
 
 def main():
 	
-	family="Anseriformes"
+	family="Picidae"
 	max_keep=5
 	remove_nospecies=True
 	kept=dict()
-	priorities=["DMNH", "DMNS", "UCM", "LACM", "MSB"] #museums to check first
+	priorities={"DMNH":3, "DMNS":3, "UCM":3, "LACM":1, "MSB":1} #museums to check first; highest number = best
 	
 	#Dataframe: species museum specimen_id record_id
 	print('Loading VertNet queries...')
@@ -45,15 +45,27 @@ def main():
 	#get counts of unique species per museum, sort 
 	counts = vertnet.groupby('institutioncode')['scientificname'].nunique().sort_values(ascending=False).reset_index(name='count')
 	#prettyPrint(counts)
+	#print(counts)
 	
 	#select top X specimens that are most recent and not skeletal? 
 	samples = getSamples(vertnet, priorities, counts["institutioncode"])
 	del(vertnet)
-
+	
+	m=max(counts["count"])
+	for idx, row in counts.iterrows():
+		if row["institutioncode"] in priorities:
+			counts.loc[counts["institutioncode"]==row["institutioncode"], "count"] = m + priorities[row["institutioncode"]]
+	samples["order"]=0
+	for idx, row in counts.iterrows():
+		samples.loc[samples["institutioncode"]==row["institutioncode"], "order"] = row["count"]
+	samples = samples.sort_values("order", ascending=True, ignore_index=True)
+	samples = samples.reset_index(drop=True)
+	
 	#make master sheet of species presence/ absense etc 
 	(summary, kept) = makeSummarySheet(samples, speclist, 1)
 	#print(summary)
 	#print(kept)
+
 	
 	#fill in any missing species
 	taxonomy = pd.read_csv("~/Desktop/PRFB_Birds/HBW-BirdLife_List_of_Birds_v5.txt", sep="\t", header=0, encoding = "ISO-8859-1", low_memory=False)
@@ -86,7 +98,6 @@ def fillSummaryMissingTaxa(species, df):
 def makeSummarySheet(samples, speclist, max_keep=1):
 	summary=list()
 	kept_samples=list()
-	
 	for species in speclist:
 		sp_data = samples.loc[samples["scientificname"]==species]
 		alts=",".join(set(list(sp_data["institutioncode"])))
@@ -105,7 +116,7 @@ def makeSummarySheet(samples, speclist, max_keep=1):
 def getSamples(vertnet, priorities, order):
 	ret=list()
 	
-	for group in priorities:
+	for group in priorities.keys():
 		
 		grouped = data=vertnet.groupby("institutioncode")
 		if group not in grouped.groups:
@@ -143,7 +154,7 @@ def getSamples(vertnet, priorities, order):
 	
 	for group in order:
 		data=vertnet.groupby("institutioncode").get_group(group)
-		if group in priorities:
+		if group in list(priorities.keys()):
 			#print("skipping",group)
 			continue
 		else:
